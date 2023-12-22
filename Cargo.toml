@@ -1,0 +1,16 @@
+[package]
+name = "effectum-11"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+effectum = { git = "https://github.com/dimfeld/effectum.git" }
+futures = "0.3.29"
+itertools = "0.12.0"
+serde = { version = "1.0.193", features = ["derive"] }
+time = "0.3"
+tokio = "1.35.1"
+log = "0.4.20"
+simple_logger = "4.3.0"
