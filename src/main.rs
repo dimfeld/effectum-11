@@ -43,10 +43,10 @@ async fn main() -> Result<(), Error> {
         Worker::builder(&queue, context).max_concurrency(5).jobs([a_job]).build()
     }).collect_vec();
 
-    try_join_all(workers).await.expect("Failed to create workers");
+    let _ = try_join_all(workers).await.expect("Failed to create workers");
 
     // Submit a job to the queue.
-    println!("Submitting job to queue ..");
+    println!("Submitting jobs to queue ..");
     let jobs = (1..100).into_iter().map(|i| {
         Job::builder("remind_me")
             .json_payload(&RemindMePayload {
@@ -56,7 +56,7 @@ async fn main() -> Result<(), Error> {
             .add_to(&queue)
     }).collect_vec();
 
-    try_join_all(jobs).await.expect("Failed to create jobs");
+    let _ = try_join_all(jobs).await.expect("Failed to create jobs");
 
     tokio::time::sleep(Duration::from_secs(30)).await;
 
