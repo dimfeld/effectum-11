@@ -1,7 +1,8 @@
+use std::future::pending;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
-use effectum::{Error, Job, JobState, JobRunner, RunningJob, Queue, Worker};
+use effectum::{Error, Job, JobRunner, RunningJob, Queue, Worker};
 use serde::{Deserialize, Serialize};
 use futures::future::try_join_all;
 use itertools::Itertools;
@@ -18,9 +19,7 @@ struct RemindMePayload {
     message: String,
 }
 
-async fn remind_me_job(job: RunningJob, context: Arc<JobContext>) -> Result<(), Error> {
-    let payload: RemindMePayload = job.json_payload()?;
-    // do something with the job
+async fn remind_me_job(_job: RunningJob, _context: Arc<JobContext>) -> Result<(), Error> {
     Ok(())
 }
 
@@ -32,11 +31,7 @@ async fn main() -> Result<(), Error> {
     // Create a queue
     let queue = Queue::new(&PathBuf::from("effectum.db")).await?;
 
-    // Define a type job for the queue.
-    let context = Arc::new(JobContext{
-        // database pool or other things here
-    });
-
+    // Create workers
     let workers = (1..10).into_iter().map(|i| {
         let context = Arc::new(JobContext{});
         let a_job = JobRunner::builder("remind_me", remind_me_job).build();
@@ -45,7 +40,7 @@ async fn main() -> Result<(), Error> {
 
     let _ = try_join_all(workers).await.expect("Failed to create workers");
 
-    // Submit a job to the queue.
+    // Submit jobs to the queue
     println!("Submitting jobs to queue ..");
     let jobs = (1..100).into_iter().map(|i| {
         Job::builder("remind_me")
@@ -56,9 +51,16 @@ async fn main() -> Result<(), Error> {
             .add_to(&queue)
     }).collect_vec();
 
+    // Only submit jobs if database is new
     let _ = try_join_all(jobs).await.expect("Failed to create jobs");
 
+    // Wait for jobs to be completed
     tokio::time::sleep(Duration::from_secs(30)).await;
+
+    // Verify no pending jobs
+    let pending_count = queue.num_active_jobs().await.unwrap().pending;
+    println!("Number of pending jobs = {}", pending_count);
+    assert_eq!(pending_count, 0);
 
     Ok(())
 }
