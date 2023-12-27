@@ -1,4 +1,4 @@
-use effectum::{Error, Job, JobRunner, Queue, RunningJob, Worker};
+use effectum::{Error, Job, JobRunner, JobState, JobStatus, Queue, RunningJob, Worker};
 use futures::future::try_join_all;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -52,7 +52,7 @@ async fn main() -> Result<(), Error> {
         })
         .collect_vec();
 
-    let workers = try_join_all(workers)
+    let _workers = try_join_all(workers)
         .await
         .expect("Failed to create workers");
 
@@ -71,7 +71,7 @@ async fn main() -> Result<(), Error> {
         })
         .collect_vec();
 
-    try_join_all(jobs).await.expect("Failed to create jobs");
+    let jobs = try_join_all(jobs).await.expect("Failed to create jobs");
 
     // Wait for jobs to be completed
     // tokio::time::sleep(Duration::from_secs(30)).await;
@@ -81,13 +81,22 @@ async fn main() -> Result<(), Error> {
         // println!("worker 1: {} {}", counts[0].started, counts[0].finished);
 
         let total_counts = queue.num_active_jobs().await.unwrap();
-        println!("total {} {}", total_counts.pending, total_counts.running);
+        println!(
+            "queue pending {} running {}",
+            total_counts.pending, total_counts.running
+        );
     }
 
     // Verify no pending jobs
     let pending_count = queue.num_active_jobs().await.unwrap().pending;
     println!("Number of pending jobs = {}", pending_count);
     assert_eq!(pending_count, 0);
+
+    println!("Verifying all jobs have succeeded");
+    for job in jobs {
+        let status = queue.get_job_status(job).await?;
+        assert_eq!(status.state, JobState::Succeeded);
+    }
 
     Ok(())
 }
